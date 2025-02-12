@@ -13,6 +13,8 @@ import {
   ACCOUNT_SIZE,
   AccountLayout,
   getAssociatedTokenAddressSync,
+  MINT_SIZE,
+  MintLayout,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { BN } from "bn.js";
@@ -20,7 +22,7 @@ import { randomBytes } from "crypto";
 import { getBankrunSetup } from "./setup";
 import { getEscrowPdaAndBump } from "./pda";
 import { getEscrowAcc } from "./accounts";
-import { createMint, getAccount } from "spl-token-bankrun";
+import { getAccount } from "spl-token-bankrun";
 
 describe("escrow", () => {
   let { context, provider, program } = {} as {
@@ -28,9 +30,12 @@ describe("escrow", () => {
     provider: BankrunProvider;
     program: Program<Escrow>;
   };
-  const [mintA, mintB, maker, taker] = Array.from({ length: 4 }, () =>
-    Keypair.generate()
+
+  const [mintA, mintB, maker, taker] = Array.from(
+    { length: 4 },
+    Keypair.generate
   );
+
   const [makerAtaA, makerAtaB, takerAtaA, takerAtaB] = [maker, taker]
     .map((kp) => {
       return [mintA, mintB].map((mint) => {
@@ -42,15 +47,39 @@ describe("escrow", () => {
       });
     })
     .flat();
+
   const [seedA, seedB] = Array.from(
     { length: 2 },
     () => new BN(randomBytes(8))
   );
+
   const depositAmount = 1;
   const receiveAmount = 1;
 
   beforeEach(async () => {
-    const ataAXData = Buffer.alloc(ACCOUNT_SIZE);
+    const [mintAData, mintBData] = Array.from({ length: 2 }, () =>
+      Buffer.alloc(MINT_SIZE)
+    );
+
+    [mintAData, mintBData].forEach((data) => {
+      MintLayout.encode(
+        {
+          decimals: 6,
+          freezeAuthority: PublicKey.default,
+          freezeAuthorityOption: 0,
+          isInitialized: true,
+          mintAuthority: PublicKey.default,
+          mintAuthorityOption: 0,
+          supply: 1n,
+        },
+        data
+      );
+    });
+
+    const [ataAXData, ataBYData] = Array.from({ length: 2 }, () =>
+      Buffer.alloc(ACCOUNT_SIZE)
+    );
+
     AccountLayout.encode(
       {
         mint: mintA.publicKey,
@@ -68,7 +97,6 @@ describe("escrow", () => {
       ataAXData
     );
 
-    const ataBYData = Buffer.alloc(ACCOUNT_SIZE);
     AccountLayout.encode(
       {
         mint: mintB.publicKey,
@@ -87,22 +115,33 @@ describe("escrow", () => {
     );
 
     ({ context, provider, program } = await getBankrunSetup([
+      ...[maker, taker].map((kp) => {
+        return {
+          address: kp.publicKey,
+          info: {
+            data: Buffer.alloc(0),
+            executable: false,
+            lamports: LAMPORTS_PER_SOL,
+            owner: SystemProgram.programId,
+          },
+        };
+      }),
       {
-        address: maker.publicKey,
+        address: mintA.publicKey,
         info: {
-          lamports: LAMPORTS_PER_SOL,
-          data: Buffer.alloc(0),
-          owner: SystemProgram.programId,
+          data: mintAData,
           executable: false,
+          lamports: LAMPORTS_PER_SOL,
+          owner: TOKEN_PROGRAM_ID,
         },
       },
       {
-        address: taker.publicKey,
+        address: mintB.publicKey,
         info: {
-          lamports: LAMPORTS_PER_SOL,
-          data: Buffer.alloc(0),
-          owner: SystemProgram.programId,
+          data: mintBData,
           executable: false,
+          lamports: LAMPORTS_PER_SOL,
+          owner: TOKEN_PROGRAM_ID,
         },
       },
       {
@@ -124,23 +163,6 @@ describe("escrow", () => {
         },
       },
     ]));
-
-    await createMint(
-      context.banksClient,
-      provider.wallet.payer,
-      provider.publicKey,
-      null,
-      9,
-      mintA
-    );
-    await createMint(
-      context.banksClient,
-      provider.wallet.payer,
-      provider.publicKey,
-      null,
-      9,
-      mintB
-    );
   });
 
   test("make an escrow", async () => {
@@ -175,6 +197,7 @@ describe("escrow", () => {
       vaultAta,
       "processed"
     );
+
     expect(Number(vaultAtaAcc.amount)).toEqual(depositAmount);
 
     const ataAXAcc = await getAccount(
@@ -182,6 +205,7 @@ describe("escrow", () => {
       makerAtaA,
       "processed"
     );
+
     expect(Number(ataAXAcc.amount)).toEqual(0);
   });
 
@@ -215,6 +239,7 @@ describe("escrow", () => {
       true
     );
     const vaultAtaAcc = await context.banksClient.getAccount(vaultAta);
+
     expect(vaultAtaAcc).toBeNull();
 
     const ataAYAcc = await getAccount(
@@ -222,6 +247,7 @@ describe("escrow", () => {
       takerAtaA,
       "processed"
     );
+
     expect(Number(ataAYAcc.amount)).toEqual(receiveAmount);
 
     const ataBXAcc = await getAccount(
@@ -229,6 +255,7 @@ describe("escrow", () => {
       makerAtaB,
       "processed"
     );
+
     expect(Number(ataBXAcc.amount)).toEqual(depositAmount);
 
     const ataBYAcc = await getAccount(
@@ -236,6 +263,7 @@ describe("escrow", () => {
       takerAtaB,
       "processed"
     );
+
     expect(Number(ataBYAcc.amount)).toEqual(0);
   });
 
@@ -269,6 +297,7 @@ describe("escrow", () => {
       true
     );
     const vaultAtaAcc = await context.banksClient.getAccount(vaultAta);
+
     expect(vaultAtaAcc).toBeNull();
 
     const ataAXAcc = await getAccount(
@@ -276,6 +305,7 @@ describe("escrow", () => {
       makerAtaA,
       "processed"
     );
+
     expect(Number(ataAXAcc.amount)).toEqual(depositAmount);
   });
 });
