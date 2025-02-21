@@ -12,6 +12,7 @@ import { BankrunProvider } from "anchor-bankrun";
 import {
   ACCOUNT_SIZE,
   AccountLayout,
+  getAccount,
   getAssociatedTokenAddressSync,
   MINT_SIZE,
   MintLayout,
@@ -22,7 +23,6 @@ import { randomBytes } from "crypto";
 import { getBankrunSetup } from "./setup";
 import { getEscrowPdaAndBump } from "./pda";
 import { getEscrowAcc } from "./accounts";
-import { getAccount } from "spl-token-bankrun";
 
 describe("escrow", () => {
   let { context, provider, program } = {} as {
@@ -192,19 +192,11 @@ describe("escrow", () => {
       escrowPda,
       true
     );
-    const vaultAtaAcc = await getAccount(
-      context.banksClient,
-      vaultAta,
-      "processed"
-    );
+    const vaultAtaAcc = await getAccount(provider.connection, vaultAta);
 
     expect(Number(vaultAtaAcc.amount)).toEqual(depositAmount);
 
-    const ataAXAcc = await getAccount(
-      context.banksClient,
-      makerAtaA,
-      "processed"
-    );
+    const ataAXAcc = await getAccount(provider.connection, makerAtaA);
 
     expect(Number(ataAXAcc.amount)).toEqual(0);
   });
@@ -242,27 +234,15 @@ describe("escrow", () => {
 
     expect(vaultAtaAcc).toBeNull();
 
-    const ataAYAcc = await getAccount(
-      context.banksClient,
-      takerAtaA,
-      "processed"
-    );
+    const ataAYAcc = await getAccount(provider.connection, takerAtaA);
 
     expect(Number(ataAYAcc.amount)).toEqual(receiveAmount);
 
-    const ataBXAcc = await getAccount(
-      context.banksClient,
-      makerAtaB,
-      "processed"
-    );
+    const ataBXAcc = await getAccount(provider.connection, makerAtaB);
 
     expect(Number(ataBXAcc.amount)).toEqual(depositAmount);
 
-    const ataBYAcc = await getAccount(
-      context.banksClient,
-      takerAtaB,
-      "processed"
-    );
+    const ataBYAcc = await getAccount(provider.connection, takerAtaB);
 
     expect(Number(ataBYAcc.amount)).toEqual(0);
   });
@@ -300,11 +280,7 @@ describe("escrow", () => {
 
     expect(vaultAtaAcc).toBeNull();
 
-    const ataAXAcc = await getAccount(
-      context.banksClient,
-      makerAtaA,
-      "processed"
-    );
+    const ataAXAcc = await getAccount(provider.connection, makerAtaA);
 
     expect(Number(ataAXAcc.amount)).toEqual(depositAmount);
   });

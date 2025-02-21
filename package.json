@@ -19,7 +19,6 @@
     "lint-staged": "^15.4.3",
     "prettier": "^2.6.2",
     "solana-bankrun": "^0.4.0",
-    "spl-token-bankrun": "^0.2.6",
     "typescript": "^4.3.5"
   }
 }
