@@ -13,6 +13,7 @@ SPL token escrow for [Turbin3 Builders Cohort](https://turbin3.com/).
 
 ### Libraries
 
+- [@coral-xyz/anchor](https://www.anchor-lang.com/docs)
 - [@solana/web3.js](https://solana-labs.github.io/solana-web3.js/)
 - [@solana/spl-token](https://solana-labs.github.io/solana-program-library/token/js/)
 - [solana-bankrun](https://kevinheavey.github.io/solana-bankrun/)
