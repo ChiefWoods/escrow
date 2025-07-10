@@ -1,4 +1,3 @@
-use crate::{constants::*, state::*};
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -7,6 +6,8 @@ use anchor_spl::{
         TransferChecked,
     },
 };
+
+use crate::{Escrow, ESCROW_SEED};
 
 #[derive(Accounts)]
 pub struct Take<'info> {
@@ -62,7 +63,7 @@ pub struct Take<'info> {
 }
 
 impl Take<'_> {
-    pub fn take(ctx: Context<Take>) -> Result<()> {
+    pub fn handler(ctx: Context<Take>) -> Result<()> {
         let signer_seeds: &[&[&[u8]]] = &[&[
             ESCROW_SEED,
             ctx.accounts.maker.to_account_info().key.as_ref(),

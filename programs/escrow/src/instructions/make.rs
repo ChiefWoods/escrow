@@ -1,9 +1,10 @@
-use crate::{constants::*, state::*};
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{transfer_checked, Mint, TokenAccount, TokenInterface, TransferChecked},
 };
+
+use crate::{Escrow, ESCROW_SEED};
 
 #[derive(Accounts)]
 #[instruction(seed: u64)]
@@ -43,7 +44,7 @@ pub struct Make<'info> {
 }
 
 impl Make<'_> {
-    pub fn make(
+    pub fn handler(
         ctx: Context<Make>,
         seed: u64,
         deposit_amount: u64,
