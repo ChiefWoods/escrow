@@ -1,5 +1,5 @@
 use crate::{constants::*, state::*};
-use anchor_lang::{prelude::*, Discriminator};
+use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{transfer_checked, Mint, TokenAccount, TokenInterface, TransferChecked},

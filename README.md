@@ -14,7 +14,7 @@ SPL token escrow for [Turbin3 Builders Cohort](https://turbin3.com/).
 ### Libraries
 
 - [@coral-xyz/anchor](https://www.anchor-lang.com/docs)
-- [@solana/web3.js](https://solana-labs.github.io/solana-web3.js/)
+- [@solana/web3.js](https://solana-foundation.github.io/solana-web3.js/)
 - [@solana/spl-token](https://solana-labs.github.io/solana-program-library/token/js/)
 - [solana-bankrun](https://kevinheavey.github.io/solana-bankrun/)
 - [anchor-bankrun](https://kevinheavey.github.io/solana-bankrun/)
@@ -32,12 +32,12 @@ SPL token escrow for [Turbin3 Builders Cohort](https://turbin3.com/).
 
 ### Prerequisites
 
-1. Update your Solana CLI, Bun toolkit and avm to the latest version
+1. Update your Solana CLI, avm and Bun toolkit to the latest version
 
 ```bash
-solana-install update
+agave-install init 2.1.0
+avm use 0.31.1
 bun upgrade
-avm update
 ```
 
 ### Setup
