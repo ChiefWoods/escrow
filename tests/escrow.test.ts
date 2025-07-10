@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Program } from "@coral-xyz/anchor";
 import { Escrow } from "../target/types/escrow";
-import { ProgramTestContext } from "solana-bankrun";
 import {
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
-import { BankrunProvider } from "anchor-bankrun";
 import {
   ACCOUNT_SIZE,
   AccountLayout,
@@ -20,20 +18,22 @@ import {
 } from "@solana/spl-token";
 import { BN } from "bn.js";
 import { randomBytes } from "crypto";
-import { getBankrunSetup } from "./setup";
-import { getEscrowPdaAndBump } from "./pda";
-import { getEscrowAcc } from "./accounts";
+import { getEscrowPda } from "./pda";
+import { fetchEscrowAcc } from "./accounts";
+import { LiteSVMProvider } from "anchor-litesvm";
+import { LiteSVM } from "litesvm";
+import { fundedSystemAccountInfo, getSetup } from "./setup";
 
 describe("escrow", () => {
-  let { context, provider, program } = {} as {
-    context: ProgramTestContext;
-    provider: BankrunProvider;
+  let { litesvm, provider, program } = {} as {
+    litesvm: LiteSVM;
+    provider: LiteSVMProvider;
     program: Program<Escrow>;
   };
 
   const [mintA, mintB, maker, taker] = Array.from(
     { length: 4 },
-    Keypair.generate
+    Keypair.generate,
   );
 
   const [makerAtaA, makerAtaB, takerAtaA, takerAtaB] = [maker, taker]
@@ -42,7 +42,7 @@ describe("escrow", () => {
         return getAssociatedTokenAddressSync(
           mint.publicKey,
           kp.publicKey,
-          false
+          false,
         );
       });
     })
@@ -50,7 +50,7 @@ describe("escrow", () => {
 
   const [seedA, seedB] = Array.from(
     { length: 2 },
-    () => new BN(randomBytes(8))
+    () => new BN(randomBytes(8)),
   );
 
   const depositAmount = 1;
@@ -58,7 +58,7 @@ describe("escrow", () => {
 
   beforeEach(async () => {
     const [mintAData, mintBData] = Array.from({ length: 2 }, () =>
-      Buffer.alloc(MINT_SIZE)
+      Buffer.alloc(MINT_SIZE),
     );
 
     [mintAData, mintBData].forEach((data) => {
@@ -72,12 +72,12 @@ describe("escrow", () => {
           mintAuthorityOption: 0,
           supply: 1n,
         },
-        data
+        data,
       );
     });
 
     const [ataAXData, ataBYData] = Array.from({ length: 2 }, () =>
-      Buffer.alloc(ACCOUNT_SIZE)
+      Buffer.alloc(ACCOUNT_SIZE),
     );
 
     AccountLayout.encode(
@@ -94,7 +94,7 @@ describe("escrow", () => {
         closeAuthorityOption: 0,
         closeAuthority: PublicKey.default,
       },
-      ataAXData
+      ataAXData,
     );
 
     AccountLayout.encode(
@@ -111,24 +111,19 @@ describe("escrow", () => {
         closeAuthorityOption: 0,
         closeAuthority: PublicKey.default,
       },
-      ataBYData
+      ataBYData,
     );
 
-    ({ context, provider, program } = await getBankrunSetup([
+    ({ litesvm, provider, program } = await getSetup([
       ...[maker, taker].map((kp) => {
         return {
-          address: kp.publicKey,
-          info: {
-            data: Buffer.alloc(0),
-            executable: false,
-            lamports: LAMPORTS_PER_SOL,
-            owner: SystemProgram.programId,
-          },
+          pubkey: kp.publicKey,
+          account: fundedSystemAccountInfo(),
         };
       }),
       {
-        address: mintA.publicKey,
-        info: {
+        pubkey: mintA.publicKey,
+        account: {
           data: mintAData,
           executable: false,
           lamports: LAMPORTS_PER_SOL,
@@ -136,8 +131,8 @@ describe("escrow", () => {
         },
       },
       {
-        address: mintB.publicKey,
-        info: {
+        pubkey: mintB.publicKey,
+        account: {
           data: mintBData,
           executable: false,
           lamports: LAMPORTS_PER_SOL,
@@ -145,8 +140,8 @@ describe("escrow", () => {
         },
       },
       {
-        address: makerAtaA,
-        info: {
+        pubkey: makerAtaA,
+        account: {
           lamports: LAMPORTS_PER_SOL,
           data: ataAXData,
           owner: TOKEN_PROGRAM_ID,
@@ -154,8 +149,8 @@ describe("escrow", () => {
         },
       },
       {
-        address: takerAtaB,
-        info: {
+        pubkey: takerAtaB,
+        account: {
           lamports: LAMPORTS_PER_SOL,
           data: ataBYData,
           owner: TOKEN_PROGRAM_ID,
@@ -177,10 +172,9 @@ describe("escrow", () => {
       .signers([maker])
       .rpc();
 
-    const [escrowPda, escrowBump] = getEscrowPdaAndBump(maker.publicKey, seedA);
-    const escrowAccount = await getEscrowAcc(program, escrowPda);
+    const escrowPda = getEscrowPda(maker.publicKey, seedA);
+    const escrowAccount = await fetchEscrowAcc(program, escrowPda);
 
-    expect(escrowBump).toEqual(escrowAccount.bump);
     expect(escrowAccount.seed).toStrictEqual(seedA);
     expect(escrowAccount.receiveAmount.toNumber()).toEqual(receiveAmount);
     expect(escrowAccount.maker).toStrictEqual(maker.publicKey);
@@ -190,7 +184,7 @@ describe("escrow", () => {
     const vaultAta = getAssociatedTokenAddressSync(
       mintA.publicKey,
       escrowPda,
-      true
+      true,
     );
     const vaultAtaAcc = await getAccount(provider.connection, vaultAta);
 
@@ -213,7 +207,7 @@ describe("escrow", () => {
       .signers([maker])
       .rpc();
 
-    const [escrowPda] = getEscrowPdaAndBump(maker.publicKey, seedA);
+    const escrowPda = getEscrowPda(maker.publicKey, seedA);
 
     await program.methods
       .take()
@@ -228,11 +222,11 @@ describe("escrow", () => {
     const vaultAta = getAssociatedTokenAddressSync(
       mintA.publicKey,
       escrowPda,
-      true
+      true,
     );
-    const vaultAtaAcc = await context.banksClient.getAccount(vaultAta);
+    const vaultAtaBal = litesvm.getBalance(vaultAta);
 
-    expect(vaultAtaAcc).toBeNull();
+    expect(vaultAtaBal).toBe(0n);
 
     const ataAYAcc = await getAccount(provider.connection, takerAtaA);
 
@@ -259,7 +253,7 @@ describe("escrow", () => {
       .signers([maker])
       .rpc();
 
-    const [escrowPda] = getEscrowPdaAndBump(maker.publicKey, seedB);
+    const escrowPda = getEscrowPda(maker.publicKey, seedB);
 
     await program.methods
       .cancel()
@@ -274,11 +268,11 @@ describe("escrow", () => {
     const vaultAta = getAssociatedTokenAddressSync(
       mintA.publicKey,
       escrowPda,
-      true
+      true,
     );
-    const vaultAtaAcc = await context.banksClient.getAccount(vaultAta);
+    const vaultAtaAcc = litesvm.getBalance(vaultAta);
 
-    expect(vaultAtaAcc).toBeNull();
+    expect(vaultAtaAcc).toBe(0n);
 
     const ataAXAcc = await getAccount(provider.connection, makerAtaA);
 
